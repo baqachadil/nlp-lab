@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NLP Hands-on Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400..700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column, header + segmented station switcher, each station = controls on top, live visual below */
+:root{
+  --bg:#F2F4F8; --surface:#FBFBF8; --sunk:#E8ECF2; --fg:#14213D; --muted:#4A5568; --faint:#7A8597; --line:#D5DCE6;
+  --navy:#15244D; --teal:#0B6E7C; --teal-soft:#DCEEF0; --gold:#D4A72C; --gold-soft:#F7EDD2; --on-accent:#FBFBF8; --warn:#B4441C;
+  --display:'Space Grotesk',Arial,sans-serif; --body:'Inter',system-ui,Arial,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1833; --surface:#16244A; --sunk:#1D2E5A; --fg:#EEF2F8; --muted:#B4C3D6; --faint:#8A9BB4; --line:#2B3E6E;
+  --navy:#0A1228; --teal:#3FB0BF; --teal-soft:#173F4E; --gold:#E2B84A; --gold-soft:#3D3418; --on-accent:#0E1833; --warn:#F08A5D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1833; --surface:#16244A; --sunk:#1D2E5A; --fg:#EEF2F8; --muted:#B4C3D6; --faint:#8A9BB4; --line:#2B3E6E;
+  --navy:#0A1228; --teal:#3FB0BF; --teal-soft:#173F4E; --gold:#E2B84A; --gold-soft:#3D3418; --on-accent:#0E1833; --warn:#F08A5D; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal)}
+h1{font-family:var(--display);font-size:clamp(30px,5vw,46px);line-height:1.08;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.sub{color:var(--muted);max-width:62ch;margin:0}
+nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:var(--sunk);padding:6px;border-radius:14px;margin-bottom:20px}
+nav a{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;min-width:0}
+nav a .k{font-family:var(--mono);font-size:12px;color:var(--faint)}
+nav a .n{font-family:var(--display);font-weight:600;font-size:17px;color:var(--fg)}
+nav a[aria-current="page"]{background:var(--surface);box-shadow:0 1px 6px rgba(10,20,40,.12)}
+nav a[aria-current="page"] .k{color:var(--teal)}
+nav a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,.tok:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.panel{background:var(--surface);border-radius:18px;padding:clamp(16px,3vw,28px);display:flex;flex-direction:column;gap:18px}
+.panel h2{font-family:var(--display);font-size:24px;margin:0;line-height:1.2}
+.lead{color:var(--muted);margin:0;max-width:68ch}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+label.ctl{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--faint);font-weight:600;letter-spacing:.04em;text-transform:uppercase;min-width:0}
+textarea,input[type=text]{width:100%;font:inherit;font-size:17px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--teal)}
+button{font:inherit;font-weight:600;font-size:15px;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--teal);color:var(--on-accent)}
+button.ghost{background:var(--sunk);color:var(--fg)}
+button.pill{background:var(--sunk);color:var(--fg);padding:8px 14px;border-radius:999px;font-weight:500}
+button.pill[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--bg);border-radius:12px;padding:12px 14px}
+.stat .v{font-family:var(--display);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat .l{font-size:13px;color:var(--faint)}
+.toks{display:flex;flex-wrap:wrap;gap:6px;padding:14px;background:var(--bg);border-radius:12px;min-height:64px;align-content:flex-start}
+.tok{font-family:var(--mono);font-size:16px;padding:4px 8px;border-radius:7px;color:var(--fg);white-space:pre}
+.t0{background:var(--teal-soft)}.t1{background:var(--gold-soft)}
+.sp{width:10px}
+.note{font-size:13px;color:var(--faint);margin:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid2>*{min-width:0}
+/* attention */
+.sent{display:flex;flex-wrap:wrap;gap:8px}
+.tok.btn{cursor:pointer;border:2px solid transparent;font-family:var(--body);font-size:17px;padding:6px 10px;background:var(--bg)}
+.tok.btn.q{background:var(--fg);color:var(--bg)}
+.attrow{display:flex;flex-direction:column;gap:6px}
+.ar{display:grid;grid-template-columns:84px 1fr 52px;gap:10px;align-items:center;font-size:15px}
+.ar .w{text-align:right;font-weight:500;overflow:hidden;text-overflow:ellipsis}
+.ar .tr{height:20px;background:var(--bg);border-radius:6px;overflow:hidden}
+.ar .f{height:100%;background:var(--teal);border-radius:6px;transition:width .5s ease}
+.ar.top .f{background:var(--gold)}
+.ar .p{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;font-family:var(--mono);width:100%}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--faint);font-weight:600}
+td:first-child,th:first-child{text-align:left}
+tr.qrow td{color:var(--teal);font-weight:600}
+.formula{font-family:var(--mono);font-size:15px;background:var(--bg);padding:10px 12px;border-radius:10px;overflow-x:auto;white-space:nowrap}
+/* predict */
+.ctx{font-size:20px;background:var(--bg);border-radius:12px;padding:14px 16px;min-height:56px;line-height:1.45}
+.ctx .gen{background:var(--gold-soft);border-radius:5px;padding:0 3px}
+.bars{display:flex;flex-direction:column;gap:8px}
+.br{display:grid;grid-template-columns:110px 1fr 64px 56px;gap:10px;align-items:center}
+.br .w{font-family:var(--mono);text-align:right;overflow:hidden;text-overflow:ellipsis}
+.br .tr{height:24px;background:var(--bg);border-radius:6px;overflow:hidden}
+.br .f{height:100%;background:var(--teal);transition:width .35s ease}
+.br .p,.br .c{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right;font-size:14px}
+.br .c{color:var(--gold);font-weight:600}
+.tval{font-family:var(--display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+/* agent */
+.loop{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stage{background:var(--bg);border-radius:12px;padding:10px;text-align:center;font-family:var(--display);font-weight:600;color:var(--faint);transition:background .3s,color .3s}
+.stage.on{background:var(--gold);color:var(--navy)}
+.trace{display:flex;flex-direction:column;gap:10px}
+.ev{border-radius:12px;padding:12px 14px;background:var(--bg);display:flex;flex-direction:column;gap:6px;animation:in .35s ease both}
+.ev .h{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.ev.think .h{color:var(--teal)}.ev.tool .h{color:var(--gold)}.ev.obs .h{color:var(--muted)}.ev.err .h{color:var(--warn)}.ev.final{background:var(--teal-soft)}
+.ev pre{margin:0;font-family:var(--mono);font-size:13px;white-space:pre-wrap;word-break:break-word;color:var(--fg)}
+@keyframes in{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}nav a .n{font-size:15px}.br{grid-template-columns:84px 1fr 48px 40px}.loop{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:420px){nav{grid-template-columns:repeat(2,1fr)}}
+footer{margin-top:24px;color:var(--faint);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+<span class="eyebrow">ENSIASD Taroudant · Prof. Adil BAQACH</span>
+<h1>NLP in the Age of LLMs: the lab</h1>
+<p class="sub">Four small stations that follow the talk: how text becomes tokens, how attention picks context, how a model chooses the next word, and how an agent loops with tools.</p>
+</header>
+
+<nav aria-label="Lab stations">
+<a href="#tokenize" data-v="tokenize"><span class="k">01</span><span class="n">Tokenize</span></a>
+<a href="#attend" data-v="attend"><span class="k">02</span><span class="n">Attend</span></a>
+<a href="#predict" data-v="predict"><span class="k">03</span><span class="n">Predict</span></a>
+<a href="#act" data-v="act"><span class="k">04</span><span class="n">Act</span></a>
+</nav>
+
+<!-- 01 TOKENIZE -->
+<section class="panel" id="v-tokenize">
+<h2>Byte-Pair Encoding, live</h2>
+<p class="lead">This is a real BPE tokenizer trained in your browser on a small French and English corpus. It starts from single characters and repeatedly merges the most frequent pair. Slide the merges to watch characters fuse into sub-words.</p>
+<label class="ctl" for="tk-in">Your text<textarea id="tk-in" rows="2">Le traitement automatique du langage transforme anticonstitutionnellement nos modèles of language.</textarea></label>
+<label class="ctl" for="tk-m">Merges learned: <span id="tk-mv" class="tval">0</span><input id="tk-m" type="range" min="0" max="400" value="250"></label>
+<div class="stats">
+<div class="stat"><div class="v" id="tk-c">0</div><div class="l">characters</div></div>
+<div class="stat"><div class="v" id="tk-w">0</div><div class="l">words</div></div>
+<div class="stat"><div class="v" id="tk-t">0</div><div class="l">tokens</div></div>
+</div>
+<div class="toks" id="tk-out" aria-live="polite"></div>
+<p class="note" id="tk-last"></p>
+<p class="note">Real tokenizers (GPT, Llama) learn 32,000 to 200,000 merges from terabytes of text. Words the corpus rarely saw, like Darija written in Latin script, split into more tokens and cost more.</p>
+</section>
+
+<!-- 02 ATTEND -->
+<section class="panel" id="v-attend" hidden>
+<h2>Scaled dot-product attention</h2>
+<p class="lead">Click any word to make it the query. Its attention over the sentence is computed with the real formula on small hand-made vectors, so you can follow every number. Then switch the last word and watch “it” change its mind.</p>
+<div class="row" role="group" aria-label="Last word">
+<button class="pill" id="at-tired" aria-pressed="true">…too tired</button>
+<button class="pill" id="at-wide" aria-pressed="false">…too wide</button>
+</div>
+<div class="sent" id="at-sent"></div>
+<div class="grid2">
+<div class="attrow" id="at-bars" aria-live="polite"></div>
+<div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+<div class="formula">softmax( q·kᵢ / √d ) , d = 6</div>
+<div class="tblwrap"><table id="at-tbl"></table></div>
+<p class="note">Dimensions: noun, animate, place, function word, verb, pronoun. Real models learn Q, K and V matrices with hundreds of dimensions; these are hand-picked to show the mechanics.</p>
+</div>
+</div>
+</section>
+
+<!-- 03 PREDICT -->
+<section class="panel" id="v-predict" hidden>
+<h2>Next-token sampling and temperature</h2>
+<p class="lead">A language model outputs a score (logit) for every token. Softmax with temperature T turns scores into probabilities: p ∝ exp(logit / T). Move T and sample to see how “creative” the model becomes.</p>
+<div class="row" role="group" aria-label="Prompt" id="pr-prompts"></div>
+<div class="ctx" id="pr-ctx"></div>
+<label class="ctl" for="pr-t">Temperature: <span id="pr-tv" class="tval">1.0</span><input id="pr-t" type="range" min="0.1" max="2.5" step="0.1" value="1"></label>
+<div class="row">
+<button id="pr-one">Sample one token</button>
+<button class="ghost" id="pr-100">Sample 100 times</button>
+<button class="ghost" id="pr-reset">Reset</button>
+</div>
+<div class="bars" id="pr-bars" aria-live="polite"></div>
+<p class="note">Gold column = how often each token came out in your 100 samples. Logits are illustrative values for teaching, not taken from a specific model.</p>
+</section>
+
+<!-- 04 ACT -->
+<section class="panel" id="v-act" hidden>
+<h2>An agent loop, step by step</h2>
+<p class="lead">Task given to the agent: “What is the class average in grades.csv, rounded to one decimal?” The agent plans, calls a tool, observes, and decides what to do next, including recovering from its own mistake.</p>
+<div class="loop" aria-hidden="true"><div class="stage" id="st-plan">Plan</div><div class="stage" id="st-tool">Call tool</div><div class="stage" id="st-obs">Observe</div><div class="stage" id="st-dec">Decide</div></div>
+<div class="row"><button id="ag-next">Next step</button><button class="ghost" id="ag-play">Play all</button><button class="ghost" id="ag-reset">Restart</button><span class="note" id="ag-count"></span></div>
+<div class="trace" id="ag-trace" aria-live="polite"></div>
+<p class="note">Scripted example trace with example data, to show the pattern used by real agent frameworks.</p>
+</section>
+
+<footer>Companion to the talk “NLP in the Age of Large Language Models: Opportunities and Challenges”.</footer>
+</div>
+
+<script>
+(function(){
+/* ---------- routing ---------- */
+var views=['tokenize','attend','predict','act'];
+function route(){var h=(location.hash||'').replace('#','');if(views.indexOf(h)<0)h='tokenize';
+views.forEach(function(v){document.getElementById('v-'+v).hidden=(v!==h);});
+document.querySelectorAll('nav a').forEach(function(a){if(a.dataset.v===h)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});}
+window.addEventListener('hashchange',route);route();
+
+/* ---------- 01 BPE ---------- */
+var corpus="le traitement automatique du langage naturel est un domaine de l intelligence artificielle . le langage naturel est ambigu . les modèles de langage apprennent à partir de grands corpus . un modèle de langage prédit le mot suivant . la traduction automatique et la classification de textes sont des applications . les transformateurs utilisent l attention . l attention permet au modèle de regarder tous les mots . la constitution nationale et les institutions constitutionnelles . traitement traitements traiter traitée transformation transformer transforme transformateur . natural language processing is a field of artificial intelligence . language models learn from large corpora . a language model predicts the next word . the transformer uses attention . attention lets the model look at every word . modeling models modeled modern . learning learned learner . the national constitution and constitutional institutions . processing processed process . automatically automatic automation . nationalement rationnellement exceptionnellement professionnellement . anti antique antiquité . ment ments ment ";
+var freq={};corpus.split(/\s+/).forEach(function(w){if(!w||w==='.')return;freq[w]=(freq[w]||0)+1;});
+var words=Object.keys(freq).map(function(w){return {s:Array.from(w),f:freq[w]};});
+var merges=[];
+(function train(){for(var m=0;m<400;m++){var pc={};words.forEach(function(o){for(var i=0;i<o.s.length-1;i++){var k=o.s[i]+'\u0001'+o.s[i+1];pc[k]=(pc[k]||0)+o.f;}});
+var best=null,bc=1;for(var k in pc){if(pc[k]>bc||(pc[k]===bc&&best!==null&&k<best&&pc[k]>1)){best=k;bc=pc[k];}}
+if(!best||bc<2)break;var ab=best.split('\u0001');merges.push(ab);
+words.forEach(function(o){var n=[];for(var i=0;i<o.s.length;i++){if(i<o.s.length-1&&o.s[i]===ab[0]&&o.s[i+1]===ab[1]){n.push(ab[0]+ab[1]);i++;}else n.push(o.s[i]);}o.s=n;});}})();
+var tkM=document.getElementById('tk-m');tkM.max=merges.length;if(+tkM.value>merges.length)tkM.value=merges.length;
+function bpe(word,K){var s=Array.from(word);for(var m=0;m<K;m++){var a=merges[m][0],b=merges[m][1];if(s.length<2)break;var n=[],hit=false;
+for(var i=0;i<s.length;i++){if(i<s.length-1&&s[i]===a&&s[i+1]===b){n.push(a+b);i++;hit=true;}else n.push(s[i]);}if(hit)s=n;}return s;}
+function tok(){var txt=document.getElementById('tk-in').value,K=+tkM.value;document.getElementById('tk-mv').textContent=K;
+var out=document.getElementById('tk-out');out.innerHTML='';var parts=txt.toLowerCase().match(/[\p{L}\p{N}]+|[^\s\p{L}\p{N}]/gu)||[];var n=0,c=0;
+parts.forEach(function(w,wi){var pcs=/[\p{L}\p{N}]/u.test(w)?bpe(w,K):[w];pcs.forEach(function(p){var e=document.createElement('span');e.className='tok t'+(c%2);e.textContent=p;out.appendChild(e);c++;n++;});
+var sp=document.createElement('span');sp.className='sp';out.appendChild(sp);});
+document.getElementById('tk-c').textContent=Array.from(txt).length;
+document.getElementById('tk-w').textContent=(txt.trim().match(/\S+/g)||[]).length;
+document.getElementById('tk-t').textContent=n;
+document.getElementById('tk-last').textContent=K>0?('Latest merge #'+K+':  “'+merges[K-1][0]+'” + “'+merges[K-1][1]+'” → “'+merges[K-1][0]+merges[K-1][1]+'”'):'No merges yet: every character is its own token.';}
+tkM.addEventListener('input',tok);document.getElementById('tk-in').addEventListener('input',tok);tok();
+
+/* ---------- 02 ATTENTION ---------- */
+var D=['noun','anim','place','func','verb','pron'];
+var base=[['The',[0,0,0,1,0,0],'func'],['animal',[1,1,0,0,0,0],'noun'],['didn’t',[0,0,0,.5,.5,0],'verb'],['cross',[0,0,0,0,1,0],'verb'],['the',[0,0,0,1,0,0],'func'],['street',[1,0,1,0,0,0],'noun'],['because',[0,0,0,1,0,0],'func'],['it',[0,0,0,0,0,1],'pron'],['was',[0,0,0,.4,.6,0],'verb'],['too',[0,0,0,1,0,0],'func']];
+var ends={tired:['tired',[0,.8,0,0,0,0],'adj'],wide:['wide',[0,0,.8,0,0,0],'adj']};
+var end='tired',qi=7;
+function sent(){return base.concat([ends[end]]);}
+function query(i,S){var t=S[i],last=S[S.length-1][1];
+if(t[2]==='pron')return [4,4*last[1]/.8,4*last[2]/.8,0,0,0];
+if(t[2]==='verb')return [4,0,0,0,0,0];
+if(t[2]==='noun')return [0,0,0,0,4,0];
+if(t[2]==='adj')return [4,4*t[1][1]/.8,4*t[1][2]/.8,0,0,0];
+return [0,0,0,1,0,0];}
+function attend(){var S=sent(),q=query(qi,S),sc=S.map(function(t){var d=0;for(var j=0;j<6;j++)d+=q[j]*t[1][j];return d/Math.sqrt(6);}),mx=Math.max.apply(null,sc),ex=sc.map(function(s){return Math.exp(s-mx)}),sm=ex.reduce(function(a,b){return a+b},0),p=ex.map(function(e){return e/sm});
+var sEl=document.getElementById('at-sent');sEl.innerHTML='';S.forEach(function(t,i){var b=document.createElement('button');b.className='tok btn'+(i===qi?' q':'');b.textContent=t[0];b.setAttribute('aria-label','Use “'+t[0]+'” as query');b.onclick=function(){qi=i;attend();};sEl.appendChild(b);});
+var pm=Math.max.apply(null,p),bars=document.getElementById('at-bars');bars.innerHTML='<div class="note">Attention of <b>“'+S[qi][0]+'”</b> over the sentence</div>';
+S.forEach(function(t,i){var r=document.createElement('div');r.className='ar'+(p[i]===pm?' top':'');r.innerHTML='<div class="w"></div><div class="tr"><div class="f" style="width:0"></div></div><div class="p">'+(p[i]*100).toFixed(0)+'%</div>';r.querySelector('.w').textContent=t[0];bars.appendChild(r);(function(f,v){requestAnimationFrame(function(){f.style.width=v+'%';});})(r.querySelector('.f'),p[i]/pm*100);});
+var h='<tr><th>vector</th>'+D.map(function(d){return '<th>'+d+'</th>'}).join('')+'<th>score</th></tr>';
+h+='<tr class="qrow"><td>q(“'+S[qi][0]+'”)</td>'+q.map(function(v){return '<td>'+(+v.toFixed(1))+'</td>'}).join('')+'<td></td></tr>';
+S.forEach(function(t,i){h+='<tr><td>k(“'+t[0]+'”)</td>'+t[1].map(function(v){return '<td>'+v+'</td>'}).join('')+'<td>'+sc[i].toFixed(2)+'</td></tr>';});
+var tb=document.getElementById('at-tbl');tb.innerHTML=h;Array.from(tb.querySelectorAll('td')).forEach(function(td){if(td.textContent==='k(“'+S[qi][0]+'”)')td.style.fontWeight='600';});}
+function setEnd(e){end=e;document.getElementById('at-tired').setAttribute('aria-pressed',e==='tired');document.getElementById('at-wide').setAttribute('aria-pressed',e==='wide');attend();}
+document.getElementById('at-tired').onclick=function(){setEnd('tired')};document.getElementById('at-wide').onclick=function(){setEnd('wide')};attend();
+
+/* ---------- 03 PREDICT ---------- */
+var P=[{c:'The capital of Morocco is',t:[['Rabat',6.2],['a',3.5],['located',3.1],['the',2.9],['Casablanca',2.4],['known',2.0]]},
+{c:'Attention is all you',t:[['need',7.0],['want',3.2],['have',2.9],['get',2.2],['know',1.8],['deserve',1.5]]},
+{c:'Le couscous se mange le',t:[['vendredi',5.4],['plus',3.6],['midi',3.4],['soir',3.0],['dimanche',2.6],['matin',1.9]]}];
+var pi=0,cnt=[],gen=[];
+function probs(T){var L=P[pi].t,mx=Math.max.apply(null,L.map(function(x){return x[1]})),e=L.map(function(x){return Math.exp((x[1]-mx)/T)}),s=e.reduce(function(a,b){return a+b},0);return e.map(function(v){return v/s});}
+function T(){return +document.getElementById('pr-t').value;}
+function draw(){document.getElementById('pr-tv').textContent=T().toFixed(1);var p=probs(T()),b=document.getElementById('pr-bars');b.innerHTML='';var tot=cnt.reduce(function(a,c){return a+c},0);
+P[pi].t.forEach(function(x,i){var r=document.createElement('div');r.className='br';r.innerHTML='<div class="w"></div><div class="tr"><div class="f" style="width:'+(p[i]*100)+'%"></div></div><div class="p">'+(p[i]*100).toFixed(1)+'%</div><div class="c">'+(tot?cnt[i]:'')+'</div>';r.querySelector('.w').textContent=x[0];b.appendChild(r);});
+var c=document.getElementById('pr-ctx');c.textContent=P[pi].c+' ';gen.forEach(function(g){var s=document.createElement('span');s.className='gen';s.textContent=g;c.appendChild(s);c.appendChild(document.createTextNode(' '));});}
+function sample(){var p=probs(T()),r=Math.random(),a=0;for(var i=0;i<p.length;i++){a+=p[i];if(r<=a)return i;}return p.length-1;}
+function reset(){cnt=P[pi].t.map(function(){return 0});gen=[];draw();}
+var pp=document.getElementById('pr-prompts');P.forEach(function(x,i){var b=document.createElement('button');b.className='pill';b.textContent=x.c+' …';b.setAttribute('aria-pressed',i===pi);b.onclick=function(){pi=i;Array.from(pp.children).forEach(function(c,j){c.setAttribute('aria-pressed',j===i)});reset();};pp.appendChild(b);});
+document.getElementById('pr-t').addEventListener('input',function(){cnt=cnt.map(function(){return 0});draw();});
+document.getElementById('pr-one').onclick=function(){var i=sample();cnt[i]++;gen=[P[pi].t[i][0]];draw();};
+document.getElementById('pr-100').onclick=function(){cnt=cnt.map(function(){return 0});for(var k=0;k<100;k++)cnt[sample()]++;draw();};
+document.getElementById('pr-reset').onclick=reset;reset();
+
+/* ---------- 04 AGENT ---------- */
+var steps=[
+{s:'plan',k:'think',h:'Plan',b:'I need the grades from grades.csv, then compute their mean and round it. I will read the file with the Python tool.'},
+{s:'tool',k:'tool',h:'Tool call · python',b:'import pandas as pd\ndf = pd.read_csv("grades.csv")\ndf["Grade"].mean()'},
+{s:'obs',k:'err',h:'Observation · error',b:'KeyError: \'Grade\''},
+{s:'dec',k:'think',h:'Decide',b:'The column is not called “Grade”. I should look at the column names before guessing again.'},
+{s:'tool',k:'tool',h:'Tool call · python',b:'print(df.columns.tolist())\nprint(df["note"].tolist())'},
+{s:'obs',k:'obs',h:'Observation',b:'[\'etudiant\', \'note\']\n[14.5, 12.0, 16.0, 9.5, 17.0, 13.0, 11.5, 15.0]'},
+{s:'dec',k:'think',h:'Decide',b:'The grades are in “note”. 8 values, sum = 108.5. I will let the tool compute the mean to avoid arithmetic mistakes.'},
+{s:'tool',k:'tool',h:'Tool call · python',b:'round(df["note"].mean(), 1)'},
+{s:'obs',k:'obs',h:'Observation',b:'13.6'},
+{s:'dec',k:'final',h:'Final answer',b:'The class average is 13.6 / 20 (8 students; exact mean 13.5625).'}];
+var si=0,timer=null;
+function stage(s){['plan','tool','obs','dec'].forEach(function(x){document.getElementById('st-'+x).classList.toggle('on',x===s);});}
+function next(){if(si>=steps.length){stop();return;}var st=steps[si],e=document.createElement('div');e.className='ev '+st.k;e.innerHTML='<div class="h"></div><pre></pre>';e.querySelector('.h').textContent=(si+1)+' · '+st.h;e.querySelector('pre').textContent=st.b;document.getElementById('ag-trace').appendChild(e);stage(st.s);si++;
+document.getElementById('ag-count').textContent='Step '+si+' of '+steps.length;if(si>=steps.length){stop();document.getElementById('ag-next').disabled=true;}}
+function stop(){if(timer){clearInterval(timer);timer=null;}document.getElementById('ag-play').textContent='Play all';}
+function restart(){stop();si=0;document.getElementById('ag-trace').innerHTML='';stage('');document.getElementById('ag-next').disabled=false;document.getElementById('ag-count').textContent='Step 0 of '+steps.length;}
+document.getElementById('ag-next').onclick=function(){stop();next();};
+document.getElementById('ag-play').onclick=function(){if(timer){stop();return;}if(si>=steps.length)restart();next();timer=setInterval(next,1400);this.textContent='Pause';};
+document.getElementById('ag-reset').onclick=restart;restart();next();next();
+})();
+</script>
+</body>
+</html>
